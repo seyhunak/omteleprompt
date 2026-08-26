@@ -1,6 +1,8 @@
 # OmTeleprompt
 
-Teleprompter for interviewers and streamers with word tracking, voice activation, and pause-on-speak.
+![OmTeleprompt](assets/omteleprompt.png)
+
+A teleprompter for **Omarchy Linux** — built for interviewers and streamers, with word tracking, voice activation, and pause-on-speak.
 
 ## Install
 
