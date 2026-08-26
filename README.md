@@ -2,28 +2,10 @@
 
 Teleprompter for interviewers and streamers with word tracking, voice activation, and pause-on-speak.
 
-## Features
-
-- **Word Tracking**: Highlights the current word as the teleprompter scrolls
-- **Voice Activated**: Uses your microphone to detect when you're speaking
-- **Pause When Speaking**: Automatically pauses the teleprompter when voice is detected
-- **Write During Speaking**: Notes panel lets you jot down thoughts while the teleprompter is running
-- **Adjustable Speed**: Control scroll speed from 0.5x to 5.0x
-- **Edit Mode**: Switch between edit and read modes seamlessly
-
 ## Install
 
 ```sh
-omarchy plugin add https://github.com/seyhunakyurek/omteleprompt.git --enable
-```
-
-Or manually clone into your plugins directory:
-
-```sh
-mkdir -p ~/.config/omarchy/plugins/io.github.seyhunakyurek.omteleprompt
-cd ~/.config/omarchy/plugins/io.github.seyhunakyurek.omteleprompt
-# copy all plugin files here
-omarchy plugin enable io.github.seyhunakyurek.omteleprompt --section right
+omarchy plugin add https://github.com/seyhunak/omteleprompt.git --enable
 ```
 
 ## Usage
@@ -49,7 +31,7 @@ Voice activation requires one of these Python audio backends:
 
 ```sh
 # Option 1: PyAudio (recommended)
-pip install pyaudio
+sudo pacman -S python-pyaudio
 
 # Option 2: sounddevice
 pip install sounddevice
@@ -64,10 +46,13 @@ If no backend is available, the teleprompter will still work in manual mode.
 
 ```sh
 # Move the widget in your bar
-omarchy bar move io.github.seyhunakyurek.omteleprompt --section right
+omarchy bar move io.github.seyhunakyurek.omteleprompt --section center
 
-# Change default settings
-omarchy plugin enable io.github.seyhunakyurek.omteleprompt --section right --config '{"fontSize": 40, "scrollSpeed": 1.5, "voiceEnabled": true, "vadThreshold": 400}'
+# Change settings
+omarchy bar set io.github.seyhunakyurek.omteleprompt fontSize 40 --json
+omarchy bar set io.github.seyhunakyurek.omteleprompt scrollSpeed 1.5 --json
+omarchy bar set io.github.seyhunakyurek.omteleprompt voiceEnabled true --json
+omarchy bar set io.github.seyhunakyurek.omteleprompt vadThreshold 400 --json
 ```
 
 ## Remove
@@ -83,7 +68,7 @@ omarchy plugin remove io.github.seyhunakyurek.omteleprompt
 
 ## Troubleshooting
 
-- **Voice not working**: Install `pyaudio` or `sounddevice` Python packages
+- **Voice not working**: Install `python-pyaudio` or `sounddevice` Python packages
 - **Panel won't open**: Run `omarchy-shell shell rescanPlugins`
 - **Text not scrolling**: Make sure you have words in the script editor
 - **Permission denied**: Ensure `bin/vad.py` is executable
