@@ -1,6 +1,6 @@
 # OmTeleprompt
 
-![OmTeleprompt](assets/omteleprompt.png)
+![OmTeleprompt](preview.png)
 
 A teleprompter for **Omarchy Linux** — built for interviewers and streamers, with word tracking, voice activation, and pause-on-speak.
 
