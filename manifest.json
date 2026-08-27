@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.seyhunakyurek.omteleprompt",
   "name": "OmTeleprompt",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "seyhunakyurek",
   "license": "MIT",
   "description": "Teleprompter for interviewers and streamers with word tracking, voice activation, and pause-on-speak.",

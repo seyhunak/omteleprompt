@@ -24,6 +24,12 @@ Panel {
   property var words: []
   property int totalWords: 0
   property bool editMode: false
+  // OMTELEPROMPT-UNBOUNDED-VAD-RESTART fix: bounded retry with backoff
+  property int vadFailureCount: 0
+  property int vadMaxRetries: 5
+  property int vadBaseRetryDelayMs: 1000
+  property bool vadPermanentFailure: false
+  property bool vadManualStop: false
 
   property var settingsWriteQueue: []
   property bool settingsWriteRunning: false
@@ -149,14 +155,55 @@ Panel {
 
   Timer {
     id: vadTimer
-    interval: 100
-    running: root.voiceEnabled
+    interval: 1000
+    running: root.voiceEnabled && !root.vadPermanentFailure && !vadRetryTimer.running
     repeat: true
     onTriggered: {
-      if (!root.voiceEnabled) return
-      if (!vadProcess.running) {
+      if (!root.voiceEnabled || root.vadPermanentFailure || vadRetryTimer.running || vadProcess.running)
+        return
+      if (root.vadFailureCount >= root.vadMaxRetries) {
+        root.vadPermanentFailure = true
+        console.warn("omteleprompt/vad", "max retries reached, not restarting VAD")
+        voiceIndicator.color = "#ff8800"
+        voiceStatus.text = "Voice Error"
+        return
+      }
+      if (!vadProcess.running && root.vadFailureCount === 0) {
         vadProcess.command = ["python3", Qt.resolvedUrl("bin/vad.py").toString(), "--threshold", String(root.vadThreshold)]
         vadProcess.running = true
+        vadStableTimer.restart()
+      }
+    }
+  }
+
+  Timer {
+    id: vadRetryTimer
+    interval: 1000
+    repeat: false
+    onTriggered: {
+      if (!root.voiceEnabled || root.vadPermanentFailure || root.vadManualStop) return
+      if (root.vadFailureCount >= root.vadMaxRetries) {
+        root.vadPermanentFailure = true
+        console.warn("omteleprompt/vad", "max retries reached, disabling voice auto-restart. Check audio backend (python-pyaudio / sounddevice / alsa-utils).")
+        voiceIndicator.color = "#ff8800"
+        voiceStatus.text = "Voice Error"
+        root.voiceDetected = false
+        return
+      }
+      vadProcess.command = ["python3", Qt.resolvedUrl("bin/vad.py").toString(), "--threshold", String(root.vadThreshold)]
+      vadProcess.running = true
+      vadStableTimer.restart()
+    }
+  }
+
+  Timer {
+    id: vadStableTimer
+    interval: 5000
+    repeat: false
+    onTriggered: {
+      if (vadProcess.running) {
+        root.vadFailureCount = 0
+        root.vadPermanentFailure = false
       }
     }
   }
@@ -179,17 +226,33 @@ Panel {
           voiceStatus.text = "Listening"
         } else if (trimmed.startsWith("LEVEL:")) {
           const parts = trimmed.split(":")
-          if (parts.length > 1) voiceLevel.value = parseFloat(parts[1])
+          if (parts.length > 1 && typeof voiceLevel !== "undefined" && voiceLevel) voiceLevel.value = parseFloat(parts[1])
         }
       }
     }
     stderr: StdioCollector { waitForEnd: false }
     onExited: function(code) {
-      if (root.voiceEnabled && vadProcess.command.length > 0) {
-        Qt.callLater(function() {
-          if (root.voiceEnabled) vadProcess.running = true
-        })
+      vadStableTimer.stop()
+      if (root.vadManualStop) {
+        root.vadManualStop = false
+        return
       }
+      if (!root.voiceEnabled) return
+      if (root.vadPermanentFailure) return
+      if (vadProcess.command.length === 0) return
+      root.vadFailureCount++
+      if (root.vadFailureCount >= root.vadMaxRetries) {
+        root.vadPermanentFailure = true
+        console.warn("omteleprompt/vad", "VAD failed", root.vadFailureCount, "times (code", code, "), giving up until voice toggled. Install python-pyaudio or sounddevice.")
+        voiceIndicator.color = "#ff8800"
+        voiceStatus.text = "Voice Error"
+        root.voiceDetected = false
+        return
+      }
+      const backoff = Math.min(30000, root.vadBaseRetryDelayMs * Math.pow(2, root.vadFailureCount - 1))
+      console.warn("omteleprompt/vad", "VAD exited code", code, "retry", root.vadFailureCount + "/" + root.vadMaxRetries, "in", backoff, "ms")
+      vadRetryTimer.interval = backoff
+      vadRetryTimer.start()
     }
   }
 
@@ -319,12 +382,23 @@ Panel {
               root.voiceEnabled = newValue
               if (!newValue) {
                 root.voiceDetected = false
+                root.vadManualStop = true
+                root.vadFailureCount = 0
+                root.vadPermanentFailure = false
+                vadRetryTimer.stop()
+                vadStableTimer.stop()
                 vadProcess.running = false
                 voiceIndicator.color = "#666666"
                 voiceStatus.text = "Voice Off"
               } else {
+                root.vadManualStop = false
+                root.vadFailureCount = 0
+                root.vadPermanentFailure = false
                 voiceIndicator.color = "#44ff44"
                 voiceStatus.text = "Listening"
+                vadProcess.command = ["python3", Qt.resolvedUrl("bin/vad.py").toString(), "--threshold", String(root.vadThreshold)]
+                vadProcess.running = true
+                vadStableTimer.restart()
               }
               root.writeSetting("voiceEnabled", String(newValue))
             }
